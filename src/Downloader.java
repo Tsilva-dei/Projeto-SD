@@ -11,6 +11,11 @@ import java.io.IOException;
 /**
  * Downloader - Downloads web pages, extracts content and sends to Storage Barrels
  * Multiple downloaders work in parallel for better performance
+ * 
+ * FEATURES:
+ * - Reliable multicast with acknowledgment from all barrels
+ * - Configurable retry logic
+ * - Ensures only one downloader processes each URL
  */
 public class Downloader implements Runnable {
     
@@ -29,13 +34,27 @@ public class Downloader implements Runnable {
      */
     public void connectToServices() {
         try {
-            Registry registry = LocateRegistry.getRegistry("localhost", 1099);
+            Registry registry = LocateRegistry.getRegistry(Config.getRMIHost(), Config.getRMIPort());
             
             // Get URL Queue
             urlQueue = (URLQueueInterface) registry.lookup("URLQueue");
             System.out.println("Downloader " + downloaderId + " connected to URLQueue");
             
             // Get all available Storage Barrels
+            updateBarrelList(registry);
+            
+        } catch (Exception e) {
+            System.err.println("Downloader " + downloaderId + " connection error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Update list of available barrels
+     */
+    private void updateBarrelList(Registry registry) {
+        try {
+            barrels.clear();
             String[] boundNames = registry.list();
             for (String name : boundNames) {
                 if (name.startsWith("StorageBarrel_")) {
@@ -46,12 +65,10 @@ public class Downloader implements Runnable {
             }
             
             if (barrels.isEmpty()) {
-                System.err.println("WARNING: No Storage Barrels found!");
+                System.err.println("WARNING: Downloader " + downloaderId + " - No Storage Barrels found!");
             }
-            
         } catch (Exception e) {
-            System.err.println("Downloader " + downloaderId + " connection error: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Error updating barrel list: " + e.getMessage());
         }
     }
     
@@ -61,12 +78,12 @@ public class Downloader implements Runnable {
         
         while (running) {
             try {
-                // Get next URL from queue
+                // Get next URL from queue (only one downloader gets each URL)
                 String url = urlQueue.getNextURL();
                 
                 if (url == null) {
                     // No URLs available, wait a bit
-                    Thread.sleep(2000);
+                    Thread.sleep(Config.getDownloaderSleepNoURLs());
                     continue;
                 }
                 
@@ -98,10 +115,10 @@ public class Downloader implements Runnable {
         try {
             System.out.println("Downloader " + downloaderId + " processing: " + url);
             
-            // Download HTML using jsoup
+            // Download HTML using jsoup with configured settings
             Document doc = Jsoup.connect(url)
-                    .userAgent("Mozilla/5.0 (Googol Bot)")
-                    .timeout(5000)
+                    .userAgent(Config.getDownloaderUserAgent())
+                    .timeout(Config.getDownloaderJsoupTimeout())
                     .get();
             
             // Extract title
@@ -127,15 +144,20 @@ public class Downloader implements Runnable {
                 }
             }
             
-            // Send extracted links back to URL queue
+            // Send extracted links back to URL queue (for recursive indexing)
             if (!links.isEmpty()) {
                 urlQueue.addURLs(new ArrayList<>(links));
             }
             
-            // Send indexed data to all Storage Barrels (reliable multicast)
-            multicastToBarrels(url, title, citation, words, links);
+            // Send indexed data to all Storage Barrels (reliable multicast with ACK)
+            boolean success = reliableMulticastToBarrels(url, title, citation, words, links);
             
-            System.out.println("Downloader " + downloaderId + " finished: " + url + " (" + words.size() + " words, " + links.size() + " links)");
+            if (success) {
+                System.out.println("Downloader " + downloaderId + " finished: " + url + 
+                                 " (" + words.size() + " words, " + links.size() + " links)");
+            } else {
+                System.err.println("Downloader " + downloaderId + " FAILED to index: " + url);
+            }
             
         } catch (IOException e) {
             System.err.println("Downloader " + downloaderId + " failed to download " + url + ": " + e.getMessage());
@@ -150,8 +172,10 @@ public class Downloader implements Runnable {
     private Set<String> extractWords(String text) {
         Set<String> words = new HashSet<>();
         String[] tokens = text.toLowerCase().split("\\W+");
+        int minWordLength = Config.getSearchMinWordLength();
+        
         for (String token : tokens) {
-            if (token.length() > 2) { // Ignore very short words
+            if (token.length() >= minWordLength) {
                 words.add(token);
             }
         }
@@ -159,31 +183,76 @@ public class Downloader implements Runnable {
     }
     
     /**
-     * Send indexed data to all Storage Barrels (reliable multicast)
-     * Simple implementation: send to all barrels, retry on failure
+     * Reliable Multicast: Send to ALL barrels with acknowledgment
+     * Ensures all barrels receive the same information (consistency)
+     * Uses retry logic for fault tolerance
      */
-    private void multicastToBarrels(String url, String title, String citation, Set<String> words, Set<String> links) {
-        for (StorageBarrelInterface barrel : barrels) {
-            boolean success = false;
-            int retries = 3;
+    private boolean reliableMulticastToBarrels(String url, String title, String citation, 
+                                               Set<String> words, Set<String> links) {
+        if (barrels.isEmpty()) {
+            System.err.println("No barrels available for multicast");
+            return false;
+        }
+        
+        int retryCount = Config.getDownloaderRetryCount();
+        int retryDelay = Config.getDownloaderRetryDelay();
+        
+        // Track which barrels have acknowledged
+        Set<StorageBarrelInterface> acknowledgedBarrels = new HashSet<>();
+        Set<StorageBarrelInterface> failedBarrels = new HashSet<>();
+        
+        // Try to send to all barrels
+        for (int attempt = 0; attempt <= retryCount; attempt++) {
+            if (acknowledgedBarrels.size() == barrels.size()) {
+                // All barrels acknowledged - success!
+                System.out.println("All " + barrels.size() + " barrels acknowledged indexing of " + url);
+                return true;
+            }
             
-            while (!success && retries > 0) {
+            if (attempt > 0) {
+                System.out.println("Retry attempt " + attempt + " for remaining barrels");
                 try {
-                    barrel.indexPage(url, title, citation, words, links);
-                    success = true;
+                    Thread.sleep(retryDelay);
+                } catch (InterruptedException e) {
+                    return false;
+                }
+            }
+            
+            // Try to send to barrels that haven't acknowledged yet
+            for (StorageBarrelInterface barrel : barrels) {
+                if (acknowledgedBarrels.contains(barrel) || failedBarrels.contains(barrel)) {
+                    continue; // Already done or permanently failed
+                }
+                
+                try {
+                    boolean ack = barrel.indexPage(url, title, citation, words, links);
+                    if (ack) {
+                        acknowledgedBarrels.add(barrel);
+                        System.out.println("Barrel acknowledged: " + barrel.getBarrelId());
+                    } else {
+                        System.err.println("Barrel returned NACK: " + barrel.getBarrelId());
+                    }
                 } catch (RemoteException e) {
-                    retries--;
-                    System.err.println("Failed to send to barrel, retries left: " + retries);
-                    if (retries > 0) {
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException ie) {
-                            break;
-                        }
+                    System.err.println("Failed to reach barrel: " + e.getMessage());
+                    if (attempt == retryCount) {
+                        failedBarrels.add(barrel);
                     }
                 }
             }
         }
+        
+        // Check if at least one barrel acknowledged
+        if (acknowledgedBarrels.isEmpty()) {
+            System.err.println("CRITICAL: No barrels acknowledged indexing of " + url);
+            return false;
+        }
+        
+        if (acknowledgedBarrels.size() < barrels.size()) {
+            System.err.println("WARNING: Only " + acknowledgedBarrels.size() + "/" + 
+                             barrels.size() + " barrels acknowledged");
+        }
+        
+        return !acknowledgedBarrels.isEmpty();
     }
     
     public void stop() {
@@ -206,6 +275,7 @@ public class Downloader implements Runnable {
         
         // Graceful shutdown on Ctrl+C
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Downloader " + downloaderId + " shutting down...");
             downloader.stop();
             try {
                 downloaderThread.join(5000);

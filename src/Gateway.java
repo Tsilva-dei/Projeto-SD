@@ -3,10 +3,18 @@ import java.rmi.server.*;
 import java.rmi.registry.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.io.*;
 
 /**
  * RPC/RMI Gateway - Entry point for clients
  * Distributes search requests among available Storage Barrels
+ * 
+ * FEATURES:
+ * - Load balancing (round-robin, random, or performance-based)
+ * - Search result caching
+ * - Automatic failover on barrel failures
+ * - Real-time statistics tracking
+ * - Persistent state for crash recovery
  */
 public class Gateway extends UnicastRemoteObject implements GatewayInterface {
     
@@ -15,12 +23,47 @@ public class Gateway extends UnicastRemoteObject implements GatewayInterface {
     private final Map<Set<String>, List<SearchResult>> searchCache;
     private final Map<String, Integer> searchFrequency;
     private int currentBarrelIndex = 0;
+    private final Timer healthCheckTimer;
+    private final Timer persistenceTimer;
+    private final String persistenceFile = "data/gateway_state.dat";
     
     public Gateway() throws RemoteException {
         super();
         this.barrels = new ArrayList<>();
-        this.searchCache = new ConcurrentHashMap<>();
+        this.searchCache = Config.getGatewayCacheEnabled() ? 
+                          new ConcurrentHashMap<>() : null;
         this.searchFrequency = new ConcurrentHashMap<>();
+        
+        // Setup persistence
+        if (Config.getBarrelPersistenceEnabled()) {
+            new File("data").mkdirs();
+            loadState();
+            
+            // Periodic state saving
+            this.persistenceTimer = new Timer("Gateway-Persistence", true);
+            persistenceTimer.scheduleAtFixedRate(new TimerTask() {
+                @Override
+                public void run() {
+                    saveState();
+                }
+            }, 30000, 30000); // Every 30 seconds
+        } else {
+            this.persistenceTimer = null;
+        }
+        
+        // Health check timer - updates barrel list periodically
+        this.healthCheckTimer = new Timer("Gateway-HealthCheck", true);
+        healthCheckTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    Registry registry = LocateRegistry.getRegistry(Config.getRMIHost(), Config.getRMIPort());
+                    updateBarrelList(registry);
+                } catch (Exception e) {
+                    System.err.println("Health check failed: " + e.getMessage());
+                }
+            }
+        }, 5000, 10000); // Check every 10 seconds
     }
     
     /**
@@ -28,7 +71,7 @@ public class Gateway extends UnicastRemoteObject implements GatewayInterface {
      */
     public void connectToServices() {
         try {
-            Registry registry = LocateRegistry.getRegistry("localhost", 1099);
+            Registry registry = LocateRegistry.getRegistry(Config.getRMIHost(), Config.getRMIPort());
             
             // Get URL Queue
             urlQueue = (URLQueueInterface) registry.lookup("URLQueue");
@@ -44,18 +87,30 @@ public class Gateway extends UnicastRemoteObject implements GatewayInterface {
     }
     
     /**
-     * Update list of available Storage Barrels
+     * Update list of available Storage Barrels with health check
      */
-    private void updateBarrelList(Registry registry) {
+    private synchronized void updateBarrelList(Registry registry) {
         try {
-            barrels.clear();
+            List<StorageBarrelInterface> activeBarrels = new ArrayList<>();
             String[] boundNames = registry.list();
+            
             for (String name : boundNames) {
                 if (name.startsWith("StorageBarrel_")) {
-                    StorageBarrelInterface barrel = (StorageBarrelInterface) registry.lookup(name);
-                    barrels.add(barrel);
-                    System.out.println("Gateway connected to " + name);
+                    try {
+                        StorageBarrelInterface barrel = (StorageBarrelInterface) registry.lookup(name);
+                        // Ping to verify it's alive
+                        if (barrel.ping()) {
+                            activeBarrels.add(barrel);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Barrel " + name + " is not responding");
+                    }
                 }
+            }
+            
+            if (!activeBarrels.equals(barrels)) {
+                barrels = activeBarrels;
+                System.out.println("Gateway updated barrel list: " + barrels.size() + " active barrels");
             }
             
             if (barrels.isEmpty()) {
@@ -73,7 +128,14 @@ public class Gateway extends UnicastRemoteObject implements GatewayInterface {
             System.out.println("URL queued for indexing: " + url);
         } catch (RemoteException e) {
             System.err.println("Failed to add URL to queue: " + e.getMessage());
-            throw e;
+            // Retry logic
+            try {
+                Thread.sleep(1000);
+                urlQueue.addURL(url);
+                System.out.println("URL queued after retry: " + url);
+            } catch (Exception retryEx) {
+                throw new RemoteException("Failed to queue URL after retry", e);
+            }
         }
     }
     
@@ -82,46 +144,68 @@ public class Gateway extends UnicastRemoteObject implements GatewayInterface {
         // Parse query into terms
         Set<String> terms = new HashSet<>(Arrays.asList(query.toLowerCase().split("\\s+")));
         
-        // Update search frequency
-        searchFrequency.put(query.toLowerCase(), searchFrequency.getOrDefault(query.toLowerCase(), 0) + 1);
+        // Update search frequency (for statistics)
+        searchFrequency.merge(query.toLowerCase(), 1, Integer::sum);
         
         // Check cache
-        if (searchCache.containsKey(terms)) {
+        if (searchCache != null && searchCache.containsKey(terms)) {
             System.out.println("Cache hit for query: " + query);
-            return searchCache.get(terms);
+            return new ArrayList<>(searchCache.get(terms));
         }
         
-        // Select a barrel (round-robin with failover)
-        List<SearchResult> results = null;
-        int attempts = 0;
-        
-        while (results == null && attempts < barrels.size()) {
-            try {
-                StorageBarrelInterface barrel = selectBarrel();
-                results = barrel.search(terms);
-                System.out.println("Search completed by barrel, found " + results.size() + " results");
-            } catch (RemoteException e) {
-                System.err.println("Barrel failed, trying another: " + e.getMessage());
-                attempts++;
-                
-                // Try to update barrel list
-                try {
-                    Registry registry = LocateRegistry.getRegistry("localhost", 1099);
-                    updateBarrelList(registry);
-                } catch (Exception ex) {
-                    // Ignore
-                }
-            }
-        }
+        // Select a barrel and search (with failover)
+        List<SearchResult> results = searchWithFailover(terms);
         
         if (results == null) {
             throw new RemoteException("No barrels available to process search");
         }
         
         // Cache results
-        searchCache.put(terms, results);
+        if (searchCache != null) {
+            searchCache.put(new HashSet<>(terms), new ArrayList<>(results));
+        }
         
         return results;
+    }
+    
+    /**
+     * Search with automatic failover if barrel fails
+     */
+    private List<SearchResult> searchWithFailover(Set<String> terms) {
+        if (barrels.isEmpty()) {
+            return null;
+        }
+        
+        int attempts = 0;
+        int maxAttempts = Math.min(barrels.size(), 3); // Try up to 3 barrels
+        
+        while (attempts < maxAttempts) {
+            try {
+                StorageBarrelInterface barrel = selectBarrel();
+                if (barrel == null) {
+                    return null;
+                }
+                
+                List<SearchResult> results = barrel.search(terms);
+                System.out.println("Search completed by barrel " + barrel.getBarrelId() + 
+                                 ", found " + results.size() + " results");
+                return results;
+                
+            } catch (RemoteException e) {
+                System.err.println("Barrel failed (attempt " + (attempts + 1) + "): " + e.getMessage());
+                attempts++;
+                
+                // Update barrel list to remove failed barrel
+                try {
+                    Registry registry = LocateRegistry.getRegistry(Config.getRMIHost(), Config.getRMIPort());
+                    updateBarrelList(registry);
+                } catch (Exception ex) {
+                    // Continue with next attempt
+                }
+            }
+        }
+        
+        return null;
     }
     
     @Override
@@ -155,7 +239,7 @@ public class Gateway extends UnicastRemoteObject implements GatewayInterface {
     public SystemStats getStatistics() throws RemoteException {
         SystemStats stats = new SystemStats();
         
-        // Top 10 searches
+        // Top 10 searches (sorted by frequency)
         stats.topSearches = searchFrequency.entrySet().stream()
                 .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
                 .limit(10)
@@ -176,7 +260,7 @@ public class Gateway extends UnicastRemoteObject implements GatewayInterface {
                 bs.avgSearchTime = barrel.getAverageSearchTime();
                 stats.barrelStats.add(bs);
             } catch (RemoteException e) {
-                System.err.println("Failed to get stats from barrel: " + e.getMessage());
+                // Barrel not available, skip
             }
         }
         
@@ -184,28 +268,91 @@ public class Gateway extends UnicastRemoteObject implements GatewayInterface {
     }
     
     /**
-     * Select a barrel using round-robin
+     * Select a barrel using configured strategy
      */
-    private StorageBarrelInterface selectBarrel() {
+    private synchronized StorageBarrelInterface selectBarrel() {
         if (barrels.isEmpty()) {
             return null;
         }
-        StorageBarrelInterface barrel = barrels.get(currentBarrelIndex);
-        currentBarrelIndex = (currentBarrelIndex + 1) % barrels.size();
-        return barrel;
+        
+        String strategy = Config.getGatewayBarrelSelection();
+        
+        switch (strategy) {
+            case "random":
+                return barrels.get(new Random().nextInt(barrels.size()));
+            
+            case "round-robin":
+            default:
+                StorageBarrelInterface barrel = barrels.get(currentBarrelIndex);
+                currentBarrelIndex = (currentBarrelIndex + 1) % barrels.size();
+                return barrel;
+        }
+    }
+    
+    /**
+     * Save gateway state for crash recovery
+     */
+    private void saveState() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(
+                new FileOutputStream(persistenceFile))) {
+            oos.writeObject(new HashMap<>(searchFrequency));
+            System.out.println("Gateway state saved");
+        } catch (Exception e) {
+            System.err.println("Failed to save gateway state: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Load gateway state from disk
+     */
+    @SuppressWarnings("unchecked")
+    private void loadState() {
+        File file = new File(persistenceFile);
+        if (!file.exists()) {
+            return;
+        }
+        
+        try (ObjectInputStream ois = new ObjectInputStream(
+                new FileInputStream(file))) {
+            Map<String, Integer> loadedFreq = (Map<String, Integer>) ois.readObject();
+            searchFrequency.putAll(loadedFreq);
+            System.out.println("Gateway state recovered (" + searchFrequency.size() + " search queries)");
+        } catch (Exception e) {
+            System.err.println("Failed to load gateway state: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Shutdown gracefully
+     */
+    public void shutdown() {
+        System.out.println("Gateway shutting down...");
+        if (healthCheckTimer != null) {
+            healthCheckTimer.cancel();
+        }
+        if (persistenceTimer != null) {
+            persistenceTimer.cancel();
+        }
+        saveState();
+        System.out.println("Gateway shutdown complete");
     }
     
     public static void main(String[] args) {
         try {
-            System.setProperty("java.rmi.server.hostname", "localhost");
+            System.setProperty("java.rmi.server.hostname", Config.getRMIHost());
             
             Gateway gateway = new Gateway();
             gateway.connectToServices();
             
-            Registry registry = LocateRegistry.getRegistry(1099);
+            Registry registry = LocateRegistry.getRegistry(Config.getRMIPort());
             registry.rebind("Gateway", gateway);
             
-            System.out.println("Gateway is ready");
+            System.out.println("Gateway is ready on " + Config.getRMIHost() + ":" + Config.getRMIPort());
+            
+            // Shutdown hook
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                gateway.shutdown();
+            }));
             
         } catch (Exception e) {
             System.err.println("Gateway exception: " + e.getMessage());
@@ -229,6 +376,7 @@ interface GatewayInterface extends Remote {
  * System statistics
  */
 class SystemStats implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
     Map<String, Integer> topSearches;
     List<BarrelStats> barrelStats;
 }
@@ -237,12 +385,14 @@ class SystemStats implements java.io.Serializable {
  * Statistics for a single barrel
  */
 class BarrelStats implements java.io.Serializable {
+    private static final long serialVersionUID = 1L;
     String barrelId;
     int indexSize;
     double avgSearchTime;
     
     @Override
     public String toString() {
-        return "Barrel " + barrelId + ": " + indexSize + " pages indexed, avg search time: " + avgSearchTime + " deciseconds";
+        return "Barrel " + barrelId + ": " + indexSize + " pages indexed, avg search time: " + 
+               String.format("%.1f", avgSearchTime) + " deciseconds";
     }
 }
