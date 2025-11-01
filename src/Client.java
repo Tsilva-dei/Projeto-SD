@@ -134,18 +134,18 @@ public class Client {
         String url = scanner.nextLine().trim();
         
         if (url.isEmpty()) {
-            System.out.println("❌ URL cannot be empty");
+            System.out.println("URL cannot be empty");
             return;
         }
         
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            System.out.println("❌ URL must start with http:// or https://");
+            System.out.println("URL must start with http:// or https://");
             return;
         }
         
         gateway.indexURL(url);
-        System.out.println("✅ URL queued for indexing: " + url);
-        System.out.println("   The page will be downloaded and indexed shortly.");
+        System.out.println("URL queued for indexing: " + url);
+        System.out.println("The page will be downloaded and indexed shortly.");
     }
     
     /**
@@ -156,11 +156,11 @@ public class Client {
         String query = scanner.nextLine().trim();
         
         if (query.isEmpty()) {
-            System.out.println("❌ Search query cannot be empty");
+            System.out.println("Search query cannot be empty");
             return;
         }
         
-        System.out.println("🔍 Searching for: \"" + query + "\"");
+        System.out.println("Searching for: \"" + query + "\"");
         
         int currentPage = 0;
         int pageSize = Config.getSearchPageSize();
@@ -170,12 +170,12 @@ public class Client {
             List<SearchResult> results = gateway.searchPaginated(query, currentPage, pageSize);
             
             if (results.isEmpty() && currentPage == 0) {
-                System.out.println("📭 No results found for \"" + query + "\"");
+                System.out.println("No results found for \"" + query + "\"");
                 return;
             }
             
             if (results.isEmpty()) {
-                System.out.println("📭 No more results.");
+                System.out.println("No more results.");
                 if (currentPage > 0) {
                     currentPage--;
                     continue;
@@ -194,9 +194,9 @@ public class Client {
                 int globalIndex = currentPage * pageSize + i + 1;
                 
                 System.out.println("\n[" + globalIndex + "] " + result.title);
-                System.out.println("    🔗 " + result.url);
-                System.out.println("    📄 " + result.citation);
-                System.out.println("    👉 " + result.incomingLinks + " incoming link(s)");
+                System.out.println(result.url);
+                System.out.println(result.citation);
+                System.out.println(result.incomingLinks + " incoming link(s)");
             }
             
             System.out.println("\n" + "-".repeat(80));
@@ -215,7 +215,7 @@ public class Client {
                     if (currentPage > 0) {
                         currentPage--;
                     } else {
-                        System.out.println("⚠️  Already on first page");
+                        System.out.println("Already on first page");
                     }
                     break;
                 case "b":
@@ -223,7 +223,7 @@ public class Client {
                     viewingResults = false;
                     break;
                 default:
-                    System.out.println("⚠️  Invalid option");
+                    System.out.println("Invalid option");
             }
         }
     }
@@ -236,7 +236,7 @@ public class Client {
         String url = scanner.nextLine().trim();
         
         if (url.isEmpty()) {
-            System.out.println("❌ URL cannot be empty");
+            System.out.println(" URL cannot be empty");
             return;
         }
         
@@ -247,13 +247,13 @@ public class Client {
         System.out.println("=".repeat(80));
         
         if (incomingLinks.isEmpty()) {
-            System.out.println("📭 No incoming links found");
+            System.out.println("No incoming links found");
         } else {
             int count = 1;
             for (String link : incomingLinks) {
                 System.out.println(count++ + ". " + link);
             }
-            System.out.println("\n✅ Total: " + incomingLinks.size() + " incoming link(s)");
+            System.out.println("\nTotal: " + incomingLinks.size() + " incoming link(s)");
         }
     }
     
@@ -269,7 +269,7 @@ public class Client {
      * View system statistics with real-time updates
      */
     private void viewStatisticsRealTime() {
-        System.out.println("\n🔴 REAL-TIME STATISTICS MODE");
+        System.out.println("\nREAL-TIME STATISTICS MODE");
         System.out.println("Statistics will update automatically every " + 
                          (Config.getGatewayStatsUpdateInterval() / 1000) + " seconds");
         System.out.println("Press ENTER to stop...\n");
@@ -291,7 +291,7 @@ public class Client {
                     
                     SystemStats stats = gateway.getStatistics();
                     displayStatistics(stats);
-                    System.out.println("\n⏱️  Auto-updating... Press ENTER to stop");
+                    System.out.println("\nAuto-updating... Press ENTER to stop");
                 } catch (Exception e) {
                     System.err.println("Failed to update statistics: " + e.getMessage());
                 }
@@ -302,7 +302,7 @@ public class Client {
         scanner.nextLine();
         statsUpdateTimer.cancel();
         
-        System.out.println("\n✅ Stopped real-time updates");
+        System.out.println("\nStopped real-time updates");
     }
     
     /**
@@ -314,7 +314,7 @@ public class Client {
         System.out.println("╠" + "═".repeat(78) + "╣");
         
         // Top searches
-        System.out.println("║ 🔥 TOP 10 SEARCHES" + " ".repeat(58) + "║");
+        System.out.println("║TOP 10 SEARCHES" + " ".repeat(58) + "║");
         System.out.println("╠" + "─".repeat(78) + "╣");
         
         if (stats.topSearches.isEmpty()) {
@@ -332,11 +332,11 @@ public class Client {
         
         // Storage barrels
         System.out.println("╠" + "═".repeat(78) + "╣");
-        System.out.println("║ 🗄️  STORAGE BARRELS" + " ".repeat(57) + "║");
+        System.out.println("║   STORAGE BARRELS" + " ".repeat(57) + "║");
         System.out.println("╠" + "─".repeat(78) + "╣");
         
         if (stats.barrelStats.isEmpty()) {
-            System.out.println("║   ⚠️  No active barrels" + " ".repeat(53) + "║");
+            System.out.println("║     No active barrels" + " ".repeat(53) + "║");
         } else {
             for (BarrelStats bs : stats.barrelStats) {
                 String line = String.format("   Barrel %s: %,6d pages | Avg search: %.1f deciseconds", 
