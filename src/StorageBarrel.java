@@ -322,4 +322,5 @@ class SearchResult implements Serializable {
     public String toString() {
         return "Title: " + title + "\nURL: " + url + "\nCitation: " + citation + "\nIncoming links: " + incomingLinks;
     }
+    
 }
