@@ -178,7 +178,11 @@ O Cliente apresenta um menu com as seguintes opções:
 1. Indexar URL:
 ```
 Choose: 1
-Enter URL: http://www.uc.pt
+Enter URL:  http://www.uc.pt
+            http://www.dei.uc.pt
+            http://www.fctuc.pt
+            http://eden.dei.uc.pt
+            https://en.wikipedia.org/wiki/University_of_Coimbra
 ```
 
 2. Aguardar 10-15 segundos (processamento)

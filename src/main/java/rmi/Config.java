@@ -1,3 +1,5 @@
+package rmi;
+
 import java.io.*;
 import java.util.Properties;
 

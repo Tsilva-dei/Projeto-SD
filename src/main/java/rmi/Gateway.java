@@ -1,8 +1,11 @@
+package rmi;
+
 import java.rmi.*;
 import java.rmi.server.*;
 import java.rmi.registry.*;
 import java.util.*;
 import java.util.concurrent.*;
+
 import java.io.*;
 
 /**
@@ -219,7 +222,7 @@ public class Gateway extends UnicastRemoteObject implements GatewayInterface {
             return new ArrayList<>();
         }
         
-        return allResults.subList(start, end);
+        return new ArrayList<>(allResults.subList(start, end));
     }
     
     @Override
