@@ -363,39 +363,3 @@ public class Gateway extends UnicastRemoteObject implements GatewayInterface {
         }
     }
 }
-
-/**
- * Remote interface for Gateway operations
- */
-interface GatewayInterface extends Remote {
-    void indexURL(String url) throws RemoteException;
-    List<SearchResult> search(String query) throws RemoteException;
-    List<SearchResult> searchPaginated(String query, int page, int pageSize) throws RemoteException;
-    Set<String> getIncomingLinks(String url) throws RemoteException;
-    SystemStats getStatistics() throws RemoteException;
-}
-
-/**
- * System statistics
- */
-class SystemStats implements java.io.Serializable {
-    private static final long serialVersionUID = 1L;
-    Map<String, Integer> topSearches;
-    List<BarrelStats> barrelStats;
-}
-
-/**
- * Statistics for a single barrel
- */
-class BarrelStats implements java.io.Serializable {
-    private static final long serialVersionUID = 1L;
-    String barrelId;
-    int indexSize;
-    double avgSearchTime;
-    
-    @Override
-    public String toString() {
-        return "Barrel " + barrelId + ": " + indexSize + " pages indexed, avg search time: " + 
-               String.format("%.1f", avgSearchTime) + " deciseconds";
-    }
-}

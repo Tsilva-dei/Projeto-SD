@@ -1,10 +1,11 @@
 package webapp.service;
 
 import org.springframework.stereotype.Service;
-import javax.annotation.PostConstruct;
-import javax.naming.directory.SearchResult;
-
-import java.io.ObjectInputFilter.Config;
+import jakarta.annotation.PostConstruct;
+import rmi.Config;
+import rmi.GatewayInterface;
+import rmi.SystemStats;
+import rmi.SearchResult;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -170,18 +171,3 @@ public class GoogolService {
         }
     }
 }
-
-/**
- * NOTA IMPORTANTE:
- * 
- * Estas interfaces (GatewayInterface, SearchResult, SystemStats, etc.)
- * têm de estar ACESSÍVEIS a este código.
- * 
- * Opções:
- * 1. Copiar as classes para o package webapp.model
- * 2. Usar as classes originais da Meta 1 (adicionar ao classpath)
- * 3. Criar um JAR com as classes comuns
- * 
- * Por agora, vou assumir opção 2 (mais simples).
- * Se deres erro de compilação, avisa que eu ajudo!
- */

@@ -302,27 +302,3 @@ class PageInfo implements Serializable {
         this.citation = citation;
     }
 }
-
-/**
- * Search result containing URL, title, citation and relevance score
- */
-class SearchResult implements Serializable {
-    private static final long serialVersionUID = 1L;
-    String url;
-    String title;
-    String citation;
-    int incomingLinks;
-    
-    public SearchResult(String url, String title, String citation, int incomingLinks) {
-        this.url = url;
-        this.title = title;
-        this.citation = citation;
-        this.incomingLinks = incomingLinks;
-    }
-    
-    @Override
-    public String toString() {
-        return "Title: " + title + "\nURL: " + url + "\nCitation: " + citation + "\nIncoming links: " + incomingLinks;
-    }
-    
-}
