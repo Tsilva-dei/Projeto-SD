@@ -68,7 +68,7 @@ public class SearchController {
     public String indexHackerNews(Model model) {
         try {
             // Thread separada para não haver bloqueios na interface
-            new Thread();
+            new Thread(() -> googolService.indexHackerNews()).start();
 
             model.addAttribute("message", "Indexando Top Stories do HackerNews...");
         } catch (Exception e) {

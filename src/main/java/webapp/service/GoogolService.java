@@ -154,7 +154,7 @@ public class GoogolService {
         }
     }
 
-    public void indexHackerNewsTopStories() {
+    public void indexHackerNews() {
         try {
             RestTemplate restTemplate = new RestTemplate();
             String topStoriesUrl = "https://hacker-news.firebaseio.com/v0/topstories.json";
@@ -196,7 +196,53 @@ public class GoogolService {
         } catch (Exception e) {
             System.err.println("Erro na API HackerNews: " + e.getMessage());
         }
-    }    
+    }
+
+    public String generateAISummary(String query, List<String> snippets) {
+        String apiKey = "AIzaSyBQXl2RDLCymDbgq-QFgNOmEA8Co-aGv1c";
+
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            // URL da API do Gemini
+            String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+
+            // Headers
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+
+            // Preparação do prompt
+            String prompt = "Resume em 1 parágrafo o que sabes sobre " + query + " com base nestes excertos: "
+                    + String.join("|", snippets);
+            Map<String, String> part = new HashMap<>();
+            part.put("text", prompt);
+
+            Map<String, Object> content = new HashMap<>();
+            content.put("parts", Collections.singletonList(part));
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("contents", Collections.singletonList(content));
+
+            org.springframework.http.HttpEntity<Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(body, headers);
+
+            ResponseEntity<Map> response = restTemplate.postForEntity(apiUrl, entity, Map.class);
+
+            // Extrair resposta do JSON
+            if (response.getBody() != null) {
+                List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.getBody().get("candidates");
+                if (candidates != null && !candidates.isEmpty()) {
+                    Map<String, Object> finalContent = (Map<String, Object>) candidates.get(0).get("content");
+                    List<Map<String, Object>> parts = (List<Map<String, Object>>) finalContent.get("parts");
+                    if (!parts.isEmpty()) {
+                        return (String) parts.get(0).get("text");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Erro na API Gemini: " + e.getMessage());
+            return "Não foi possível gerar o resumo Gemini no momento (Verificar Logs)..";
+        }
+        return "Sem resposta do Gemini.";
+    }
 
     // ========== Métodos auxiliares para ler configuração ==========
     

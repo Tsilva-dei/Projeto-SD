@@ -138,13 +138,19 @@ public class Downloader implements Runnable {
             // Extract links
             Set<String> links = new HashSet<>();
             Elements linkElements = doc.select("a[href]");
+            int maxLinks = 5;
+            int count = 0;
+            
             for (Element link : linkElements) {
+                if (count >= maxLinks) break;
+
                 String absUrl = link.attr("abs:href");
-                if (absUrl != null && !absUrl.isEmpty() && absUrl.startsWith("http")) {
+                if (absUrl != null && !absUrl.startsWith("http://")) {
                     links.add(absUrl);
+                    count++;
                 }
             }
-            
+                        
             // Send extracted links back to URL queue (for recursive indexing)
             if (!links.isEmpty()) {
                 urlQueue.addURLs(new ArrayList<>(links));
