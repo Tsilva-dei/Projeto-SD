@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://thymeleaf.org">
+<head>
+    <title>Googol Search</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; text-align: center; }
+        .search-box{ margin: 50px 0; }
+        input[type="text"] { padding: 10px; width: 300px; }
+        button { padding: 10px 20px; cursor: pointer; }
+        .stats { margin-top: 50px; border-top: 1px solid #ccc; padding-top: 20px; text-align: center; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Googol</h1>
+
+    <div th:if="${error}" class="error" th:text="${error}"></div>
+    <div th:if="${message}" class="success" th:text="${message}"></div>
+
+    <div class="search-box">
+        <form action="/search" method="get">
+            <input type="text" name="q" placeholder="Pesquisar..." required>
+            <button type="submit">Pesquisar</button>
+        </form>
+    </div>
+    <div class="index-box">
+        <h3>Adicionar URL</h3>
+        <form action="/index" method="post">
+            <input type="text" name="url" placeholder="http://" required>
+            <button type="submit">Indexar</button>
+        </form>
+    </div>
+    
+    <div class="stats" th:if="${stats}">
+        <h3>Estatísticas</h3>
+        <p><strong>Top pesquisas;</strong></p>
+        <ul>
+            <li th:each="entry : ${stats.topSearches}"
+            th:text="${entry.key + ' (' + entry.value + ')'}"></li>
+        </ul>
+    </div>
+</body>
+</html>
