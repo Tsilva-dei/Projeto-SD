@@ -16,12 +16,12 @@ public class SearchController {
     @Autowired
     private GoogolService googolService;
 
-    //Página Inicial
+    // Página Inicial
     @GetMapping("/")
     public String index(Model model) {
         try {
             if (googolService.isConnected()){
-                model.addAttribute("Stats", googolService.getStatistics());
+                model.addAttribute("stats", googolService.getStatistics());
             }
         } catch (Exception e) {
             model.addAttribute("error", "Erro na ligação ao Gateway");
@@ -30,7 +30,9 @@ public class SearchController {
     }
 
     @GetMapping("/search")
-    public String search (@RequestParam("query") String query, @RequestParam("page") int page, Model model) {
+    public String search (@RequestParam("q") String query, 
+                          @RequestParam(value = "p", defaultValue = "0") int page, 
+                          Model model) {
         try {
             List<SearchResult> results = googolService.searchPaginated(query, page, 10);
 
@@ -38,14 +40,15 @@ public class SearchController {
             model.addAttribute("query", query);
             model.addAttribute("page", page);
 
-            //Botões next/previous
+            // Botões next/previous
             model.addAttribute("nextPage", page + 1);
-            model.addAttribute("previousPage", page - 1);
-            model.addAttribute("showPrevious", page > 0);
-            model.addAttribute("showNext", page >= 10);
+            model.addAttribute("prevPage", page > 0 ? page - 1 : 0);
+            model.addAttribute("showPrev", page > 0);
+            // Simplificação: só mostra "Próximo" se vieram 10 resultados
+            model.addAttribute("showNext", results.size() >= 10); 
 
         } catch (Exception e) {
-            model.addAttribute("error", "Erro na pesquisa" + e.getMessage());
+            model.addAttribute("error", "Erro na pesquisa: " + e.getMessage());
         }
         return "search"; // Procura search.html
     }

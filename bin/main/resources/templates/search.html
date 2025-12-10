@@ -22,15 +22,15 @@
         </form>
     </div>
 
-    <h2>Resultados para: span th:text="${query}"</span></h2>
+    <h2>Resultados para: <span th:text="${query}"></span></h2>
 
     <div th:if="${error}" style="color:red" th:text="${error}"></div>
 
     <div th:each="res : ${results}" class="result">
         <div><a th:href="${res.url}" th:text="${res.title}">Título</a></div>
         <div class="url" th:text="${res.url}">http://url...</div>
-        <div class="citation" th_text="${res.citation}">Texto...</div>
-        <div class="meta" th:text="${res.incominglinks + 'links a apontar para cá'}"></div>
+        <div class="citation" th:text="${res.citation}">Texto...</div>
+        <div class="meta" th:text="${res.incomingLinks + 'links a apontar para cá'}"></div>
     </div>
 
     <div th:if="${#lists.isEmpty(results)}">
