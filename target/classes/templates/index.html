@@ -31,14 +31,79 @@
             <button type="submit">Indexar</button>
         </form>
     </div>
-    
-    <div class="stats" th:if="${stats}">
-        <h3>Estatísticas</h3>
-        <p><strong>Top pesquisas;</strong></p>
-        <ul>
-            <li th:each="entry : ${stats.topSearches}"
-            th:text="${entry.key + ' (' + entry.value + ')'}"></li>
-        </ul>
+
+    <div class="stats" id="statsContainer">
+        <h3>Estatísticas em tempo real (WebSocket)</h3>
+
+        <div style="display: flex; justify-content: space-around; text-align: left;">
+            <div>
+                <h4>Top pesquisas</h4>
+                <ul id="topSearchesList">
+                    <li>A carregar...</li>
+                </ul>
+            </div>
+            <div>
+                <h4>Barrels ativos</h4>
+                <ul id="barrelsStatsList">
+                    <li>A carregar...</li>
+                </ul>
+            </div>
+        </div>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+<script>
+        var stompClient = null;
+
+        function connect() {
+            // Liga ao endpoint que definimos no Java
+            var socket = new SockJS('/googol-websocket');
+            stompClient = Stomp.over(socket);
+            
+            // Desliga logs de debug da consola para não poluir
+            stompClient.debug = null; 
+
+            stompClient.connect({}, function (frame) {
+                console.log('Ligado ao WebSocket!');
+                
+                // Subscreve o tópico onde o Java manda as stats
+                stompClient.subscribe('/topic/stats', function (message) {
+                    var stats = JSON.parse(message.body);
+                    updateStatsUI(stats);
+                });
+            });
+        }
+
+        function updateStatsUI (stats) {
+            // Atualizar top pesquisas
+            var searchList = document.getElementbyId("topSearchesList");
+            searchList.innerHTML = ""; // Limpa a lista
+
+            if (stats.topSearches) {
+                for (var term in stats.topSearches){
+                    var count = stats.topSearches[term];
+                    var li = document.createElement("li");
+                    li.innerText = term + " (" + count + ")";
+                    searchList.appendChild(li);
+                }
+            }
+        
+            // Atualizar barrels
+            var barrelsList = document.getElementbyId("barrelsStatsList");
+            barrelsList.innerHTML = ""; // Limpa a lista
+
+            if (stats.barrelStats) {
+                stats.barrelStats.forEach(function(barrel) {
+                    var li = document.createElement("li");
+                    li.innerText = "Barrel" + barrel.barrelId + ": " + barrel.indexSize + " págs | " + barrel.avgSearchTime + "ms média";
+                    barrelsList.appendChild(li);
+                });
+            }
+        }
+
+        window.onload = connect;
+    </script>
 </body>
 </html>
