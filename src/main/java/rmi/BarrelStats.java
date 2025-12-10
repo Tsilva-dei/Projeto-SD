@@ -5,6 +5,10 @@ public class BarrelStats implements java.io.Serializable {
     public String barrelId;
     public int indexSize;
     public double avgSearchTime;
+
+    public String getBarrelId() { return barrelId; }
+    public int getIndexSize() { return indexSize; }
+    public double getAvgeSearchTime() { return avgSearchTime; }
     
     @Override
     public String toString() {
