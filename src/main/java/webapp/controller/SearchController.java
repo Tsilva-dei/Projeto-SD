@@ -63,4 +63,17 @@ public class SearchController {
         }
         return index(model);
     }
+
+    @PostMapping("/index/hackernews")
+    public String indexHackerNews(Model model) {
+        try {
+            // Thread separada para não haver bloqueios na interface
+            new Thread();
+
+            model.addAttribute("message", "Indexando Top Stories do HackerNews...");
+        } catch (Exception e) {
+            model.addAttribute("error", "Erro ao iniciar indexação do HackerNews: " + e.getMessage());
+        }
+        return index(model);
+    }
 }

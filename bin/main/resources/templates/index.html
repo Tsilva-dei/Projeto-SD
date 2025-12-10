@@ -26,9 +26,15 @@
     </div>
     <div class="index-box">
         <h3>Adicionar URL</h3>
-        <form action="/index" method="post">
+        <form action="/index" method="post" style="margin-bottom: 15px;">
             <input type="text" name="url" placeholder="http://" required>
             <button type="submit">Indexar</button>
+        </form>
+
+        <form action="/index/hackernews" method="post">
+            <button type="sumbit" style="background-color: #ff6600; color: white">
+                Indexar Top Stories (HackerNews)
+            </button>
         </form>
     </div>
 
@@ -78,7 +84,7 @@
 
         function updateStatsUI (stats) {
             // Atualizar top pesquisas
-            var searchList = document.getElementbyId("topSearchesList");
+            var searchList = document.getElementById("topSearchesList");
             searchList.innerHTML = ""; // Limpa a lista
 
             if (stats.topSearches) {
@@ -91,7 +97,7 @@
             }
         
             // Atualizar barrels
-            var barrelsList = document.getElementbyId("barrelsStatsList");
+            var barrelsList = document.getElementById("barrelsStatsList");
             barrelsList.innerHTML = ""; // Limpa a lista
 
             if (stats.barrelStats) {

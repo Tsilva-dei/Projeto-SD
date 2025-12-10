@@ -1,6 +1,10 @@
 package webapp.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import jakarta.annotation.PostConstruct;
 import rmi.Config;
 import rmi.GatewayInterface;
@@ -149,7 +153,51 @@ public class GoogolService {
             throw new Exception("Failed to get statistics: " + e.getMessage());
         }
     }
-    
+
+    public void indexHackerNewsTopStories() {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            String topStoriesUrl = "https://hacker-news.firebaseio.com/v0/topstories.json";
+
+            // Obter Histórias
+            ResponseEntity<List<Integer>> response = restTemplate.exchange(
+                topStoriesUrl,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<List<Integer>>() {}
+            );
+            
+            List<Integer> storyIds = response.getBody();
+
+            if (storyIds != null) {
+                int limit = Math.min(storyIds.size(), 10);
+
+                for (int i = 0; i < limit; i++) {
+                    Integer id = storyIds.get(i);
+                    String storyUrl = "https://hacker-news.firebaseio.com/v0/item/" + id + ".json";
+
+                    // Obter Detalhes de cada história
+                    ResponseEntity<Map<String, Object>> storyResponse = restTemplate.exchange(
+                        storyUrl,
+                        HttpMethod.GET,
+                        null,
+                        new ParameterizedTypeReference<Map<String, Object>>() {}
+                    );
+
+                    Map<String, Object> story = storyResponse.getBody();
+
+                    if (story != null && story.containsKey("url")) {
+                        String urlToIndex = (String) story.get("url");
+                        indexURL(urlToIndex);
+                        System.out.println("HackerNews story indexed: " + urlToIndex);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Erro na API HackerNews: " + e.getMessage());
+        }
+    }    
+
     // ========== Métodos auxiliares para ler configuração ==========
     
     private String getConfigProperty(String key, String defaultValue) {
