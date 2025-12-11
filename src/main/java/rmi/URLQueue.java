@@ -104,10 +104,8 @@ public class URLQueue extends UnicastRemoteObject implements URLQueueInterface {
     public int getVisitedCount() throws RemoteException {
         return visitedURLs.size();
     }
-    
-    /**
-     * Normalize URL for consistency
-     */
+
+    // Normalize URL for consistency
     private String normalizeURL(String url) {
         if (url == null) return null;
         
@@ -124,10 +122,8 @@ public class URLQueue extends UnicastRemoteObject implements URLQueueInterface {
         
         return url;
     }
-    
-    /**
-     * Save state for crash recovery
-     */
+
+    // Save state for crash recovery
     private void saveState() {
         try (ObjectOutputStream oos = new ObjectOutputStream(
                 new FileOutputStream(persistenceFile))) {
@@ -139,10 +135,8 @@ public class URLQueue extends UnicastRemoteObject implements URLQueueInterface {
             System.err.println("Failed to save URLQueue state: " + e.getMessage());
         }
     }
-    
-    /**
-     * Load state from disk
-     */
+
+    // Load state from disk
     @SuppressWarnings("unchecked")
     private void loadState() {
         File file = new File(persistenceFile);
@@ -166,9 +160,7 @@ public class URLQueue extends UnicastRemoteObject implements URLQueueInterface {
         }
     }
     
-    /**
-     * Shutdown gracefully
-     */
+    // Shutdown gracefully
     public void shutdown() {
         System.out.println("URLQueue shutting down...");
         if (autosaveTimer != null) {
@@ -210,9 +202,8 @@ public class URLQueue extends UnicastRemoteObject implements URLQueueInterface {
     }
 }
 
-/**
- * Remote interface for URL Queue operations
- */
+
+// Remote interface for URL Queue operations
 interface URLQueueInterface extends Remote {
     void addURL(String url) throws RemoteException;
     void addURLs(List<String> urls) throws RemoteException;

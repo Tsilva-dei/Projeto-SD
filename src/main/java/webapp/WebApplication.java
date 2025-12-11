@@ -3,22 +3,25 @@ package webapp;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import rmi.Config;
+import java.util.Collections;
 
 @SpringBootApplication
 @EnableScheduling
 public class WebApplication {
     
     public static void main(String[] args) {
-        System.out.println("╔══════════════════════════════════════════════════════════╗");
-        System.out.println("║           GOOGOL - Web Search Engine                     ║");
-        System.out.println("║              Starting Web Server...                      ║");
-        System.out.println("╚══════════════════════════════════════════════════════════╝");
+        // Configuração
+        SpringApplication app = new SpringApplication(WebApplication.class);
+        app.setDefaultProperties(Collections.singletonMap("server.port", Config.getWebServerPort()));
+        app.run(args);
+
+        // Lê valores para a mensagem
+        String host = Config.getWebServerHost();
+        int port = Config.getWebServerPort();
         
-        // Inicia o Spring Boot
-        SpringApplication.run(WebApplication.class, args);
-        
-        System.out.println("\n✓ Web server is running!");
-        System.out.println("✓ Open your browser at: http://localhost:8080");
-        System.out.println("✓ Press Ctrl+C to stop\n");
+        System.out.println("\nWeb server is running!");
+        System.out.println("Open your browser at: http://" + host + ":" + port);
+        System.out.println("Press Ctrl+C to stop\n");
     }
 }

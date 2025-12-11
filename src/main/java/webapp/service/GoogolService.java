@@ -15,36 +15,18 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.*;
 
-/**
- * GoogolService - Camada de serviço que comunica com o Gateway RMI
- * 
- * Esta classe é um @Service do Spring, o que significa:
- * - Spring cria UMA instância (singleton)
- * - Pode ser injetada noutras classes (@Autowired)
- * - Gere a ligação RMI ao Gateway da Meta 1
- * 
- * PADRÃO MVC:
- * Controller → Service → RMI Gateway → Storage Barrels
- */
 @Service
 public class GoogolService {
     
     private GatewayInterface gateway;
     private boolean connected = false;
     
-    /**
-     * @PostConstruct é chamado automaticamente depois do construtor
-     * É aqui que fazemos a ligação ao RMI
-     */
     @PostConstruct
     public void init() {
-        //listAvailableModels();
         connectToGateway();
     }
-    
-    /**
-     * Estabelece ligação ao Gateway RMI (da Meta 1)
-     */
+
+    // Estabelece ligação ao Gateway RMI
     private void connectToGateway() {
         try {
             // Lê configuração (assumindo que Config.java está acessível)
@@ -67,16 +49,12 @@ public class GoogolService {
         }
     }
     
-    /**
-     * Verifica se está ligado ao Gateway
-     */
+    // Verifica se está ligado ao Gateway
     public boolean isConnected() {
         return connected;
     }
     
-    /**
-     * Tenta reconectar se a ligação foi perdida
-     */
+    // Tenta reconectar se a ligação foi perdida
     private void ensureConnected() throws Exception {
         if (!connected) {
             connectToGateway();
@@ -85,10 +63,7 @@ public class GoogolService {
             }
         }
     }
-    
-    /**
-     * FUNCIONALIDADE 1: Indexar um novo URL
-     */
+    // FUNCIONALIDADE 1: Indexar um novo URL    
     public void indexURL(String url) throws Exception {
         ensureConnected();
         try {
@@ -100,10 +75,7 @@ public class GoogolService {
         }
     }
     
-    /**
-     * FUNCIONALIDADE 2: Pesquisar páginas
-     * Retorna todos os resultados (sem paginação por agora)
-     */
+    // FUNCIONALIDADE 2: Pesquisar páginas
     public List<SearchResult> search(String query) throws Exception {
         ensureConnected();
         try {
@@ -116,9 +88,7 @@ public class GoogolService {
         }
     }
     
-    /**
-     * FUNCIONALIDADE 3: Pesquisar com paginação
-     */
+    // FUNCIONALIDADE 3: Pesquisar com paginação
     public List<SearchResult> searchPaginated(String query, int page, int pageSize) throws Exception {
         ensureConnected();
         try {
@@ -129,9 +99,7 @@ public class GoogolService {
         }
     }
     
-    /**
-     * FUNCIONALIDADE 4: Obter links que apontam para um URL
-     */
+    // FUNCIONALIDADE 4: Obter links que apontam para um URL
     public Set<String> getIncomingLinks(String url) throws Exception {
         ensureConnected();
         try {
@@ -141,10 +109,8 @@ public class GoogolService {
             throw new Exception("Failed to get incoming links: " + e.getMessage());
         }
     }
-    
-    /**
-     * FUNCIONALIDADE 5: Obter estatísticas do sistema
-     */
+
+    // FUNCIONALIDADE 5: Obter estatísticas do sistema
     public SystemStats getStatistics() throws Exception {
         ensureConnected();
         try {
@@ -155,6 +121,7 @@ public class GoogolService {
         }
     }
 
+    // FUNCIONALIDADE 6: Indexar histórias do HackerNews
     public void indexHackerNews() {
         try {
             RestTemplate restTemplate = new RestTemplate();
@@ -199,9 +166,10 @@ public class GoogolService {
         }
     }
 
+    // FUNCIONALIDADE 7: Geração de Summaries
     @SuppressWarnings("unchecked")
     public String generateAISummary(String query, List<String> snippets) {
-        String apiKey = "AIzaSyBQXl2RDLCymDbgq-QFgNOmEA8Co-aGv1c";
+        String apiKey = Config.getGeminiApiKey();
 
         try {
             RestTemplate restTemplate = new RestTemplate();
@@ -248,24 +216,6 @@ public class GoogolService {
             return "Não foi possível gerar o resumo Gemini no momento (Verificar Logs)..";
         }
         return "Sem resposta do Gemini.";
-    }
-
-    public void listAvailableModels() {
-        try {
-            // Nota: Usa a mesma chave que tens no método generateAISummary
-            String apiKey = "AIzaSyBQXl2RDLCymDbgq-QFgNOmEA8Co-aGv1c"; 
-            String url = "https://generativelanguage.googleapis.com/v1beta/models?key=" + apiKey;
-            
-            RestTemplate rt = new RestTemplate();
-            ResponseEntity<String> response = rt.getForEntity(url, String.class);
-            
-            System.out.println("==========================================");
-            System.out.println(">>> MODELOS DISPONÍVEIS NA TUA CONTA:");
-            System.out.println(response.getBody());
-            System.out.println("==========================================");
-        } catch (Exception e) {
-            System.err.println(">>> ERRO AO LISTAR MODELOS: " + e.getMessage());
-        }
     }
 
     // ========== Métodos auxiliares para ler configuração ==========

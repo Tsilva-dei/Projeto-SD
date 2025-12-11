@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import webapp.service.GoogolService;
 import rmi.SearchResult;
 import java.util.List;
+import java.util.Set;
 
 @Controller
 public class SearchController {
@@ -62,6 +63,18 @@ public class SearchController {
             model.addAttribute("error", "Erro ao indexar URL: " + e.getMessage());
         }
         return index(model);
+    }
+
+    @GetMapping("/links")
+    public String incomingLinks(@RequestParam("url") String url, Model model) {
+        try {
+            Set<String> links = googolService.getIncomingLinks(url);
+            model.addAttribute("url", url);
+            model.addAttribute("links", links);
+        } catch (Exception e) {
+            model.addAttribute("error", "Erro ao obter links: " + e.getMessage());
+        }
+        return "links";
     }
 
     @PostMapping("/index/hackernews")

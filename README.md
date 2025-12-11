@@ -1,246 +1,181 @@
-# Googol - Motor de Pesquisa Web Distribuído
+# 🔍 Googol - Motor de Pesquisa Web Distribuído
+
+> Sistema de pesquisa web distribuído com backend RMI e interface Web moderna desenvolvida em Spring Boot
+
 
 ## Requisitos
 
-- Java JDK 11 ou superior
-- Biblioteca jsoup (incluída em `lib/jsoup-1.17.2.jar`)
-- Sistema Operativo: Windows, Linux ou macOS
-
-Verificar instalação Java:
-```bash
-java -version
-javac -version
-```
+- **Java JDK 17** ou superior
+- **Maven 3.6+**
+- **Conexão à Internet** (para APIs HackerNews e Gemini)
 
 ---
 
-## Compilação
+## Compilação e Build
 
-### Linux/Mac
+O projeto utiliza **Maven** para gestão de dependências e build.
+
+### Compilar e Gerar JARs
+
+Na raiz do projeto, execute:
+
 ```bash
-mkdir -p bin
-javac -d bin -cp ".:lib/*" src/*.java
+mvn clean package
 ```
 
-### Windows PowerShell
-```powershell
-New-Item -ItemType Directory -Force -Path bin
-javac -d bin -cp ".;lib/*" src/*.java
-```
+**Isto irá:**
+- Compilar todo o código
+- Correr os testes
+- Gerar o executável Web em `target/googol-web-1.0.0.jar`
+- Compilar as classes RMI em `target/classes`
 
 ---
 
 ## Configuração
 
-O ficheiro `config.properties` contém todas as configurações. Não requer recompilação após alterações.
+O ficheiro **`config.properties`** na raiz do projeto é **obrigatório**.
 
-### Execução em 1 Máquina (Teste Local)
-Deixar configuração default:
+### Exemplo de configuração:
+
 ```properties
+# RMI Configuration
 rmi.host=localhost
 rmi.port=1099
+
+# Web Server Configuration
+server.port=8080
+server.host=localhost
+
+# APIs Externas
+gemini.api.key=A_TUA_CHAVE
 ```
 
-### Execução em 2 Máquinas (Distribuído)
+> **Importante:** Substitua `A_TUA_CHAVE` pela sua chave API do Google Gemini
 
-**Máquina 1:**
-```properties
-rmi.host=localhost
-rmi.port=1099
-```
+---
 
-**Máquina 2:**
-```properties
-rmi.host=192.168.X.X    (IP da Máquina 1)
-rmi.port=1099
-```
+## Guia de Execução
 
-Descobrir IP da Máquina 1:
+O sistema é composto por um **Backend Distribuído (RMI)** e um **Frontend Web**.  
+Devem ser iniciados pela ordem abaixo.
+
+### Passo 1: Iniciar o Backend RMI
+
+Abra **4 terminais separados** e execute os seguintes comandos:
+
+#### Terminal 1 - URLQueue
 ```bash
-# Linux/Mac
-ifconfig
+java -cp "target/classes:lib/*" rmi.URLQueue
+```
 
-# Windows
-ipconfig
+#### Terminal 2 - Storage Barrel
+```bash
+java -cp "target/classes:lib/*" rmi.StorageBarrel barrel1
+```
+
+#### Terminal 3 - Downloader
+```bash
+java -cp "target/classes:lib/*" rmi.Downloader d1
+```
+
+#### Terminal 4 - Gateway
+```bash
+java -cp "target/classes:lib/*" rmi.Gateway
 ```
 
 ---
 
-## Execução em 1 Máquina
+### Passo 2: Iniciar o Servidor Web
 
-Abrir 5 terminais separados na pasta do projeto e executar pela ordem:
+Com o Backend a correr, inicie a aplicação Web num **5º terminal**:
 
-### Terminal 1: URLQueue
+#### Via Maven
+
 ```bash
-# Linux/Mac
-java -cp ".:lib/*:bin" URLQueue
-
-# Windows
-java -cp ".;lib/*;bin" URLQueue
-```
-
-### Terminal 2: Storage Barrel
-```bash
-# Linux/Mac
-java -cp ".:lib/*:bin" StorageBarrel barrel1
-
-# Windows
-java -cp ".;lib/*;bin" StorageBarrel barrel1
-```
-
-### Terminal 3: Downloader
-```bash
-# Linux/Mac
-java -cp ".:lib/*:bin" Downloader d1
-
-# Windows
-java -cp ".;lib/*;bin" Downloader d1
-```
-
-### Terminal 4: Gateway
-```bash
-# Linux/Mac
-java -cp ".:lib/*:bin" Gateway
-
-# Windows
-java -cp ".;lib/*;bin" Gateway
-```
-
-### Terminal 5: Client
-```bash
-# Linux/Mac
-java -cp ".:lib/*:bin" Client
-
-# Windows
-java -cp ".;lib/*;bin" Client
+mvn spring-boot:run
 ```
 
 ---
 
-## Execução em 2 Máquinas
+### Passo 3: Utilização
 
-### Máquina 1 (iniciar primeiro)
-
-Terminal 1:
-```bash
-java -cp ".;lib/*;bin" URLQueue
-```
-
-Terminal 2:
-```bash
-java -cp ".;lib/*;bin" StorageBarrel barrel1
-```
-
-Terminal 3:
-```bash
-java -cp ".;lib/*;bin" Downloader d1
-```
-
-Terminal 4:
-```bash
-java -cp ".;lib/*;bin" Gateway
-```
-
-### Máquina 2 (iniciar após Máquina 1)
-
-Terminal 1:
-```bash
-java -cp ".;lib/*;bin" StorageBarrel barrel2
-```
-
-Terminal 2:
-```bash
-java -cp ".;lib/*;bin" Downloader d2
-```
-
-Terminal 3:
-```bash
-java -cp ".;lib/*;bin" Client
-```
+1. **Aceda ao browser:** [http://localhost:8080](http://localhost:8080)
+2. **Indexar URLs:**
+   - Insira URLs manualmente na caixa de indexação
+   - Ou use o botão **"Indexar HackerNews"** para indexar automaticamente as top stories
+3. **Pesquisar:** Faça pesquisas e veja os resultados paginados
+4. **Estatísticas:** Acompanhe os gráficos em tempo real na página inicial (WebSockets)
+5. **IA:** Nos resultados da pesquisa, clique em **"Gerar Resumo IA"** para ver a integração com o Gemini
 
 ---
 
-## Utilização do Cliente
+## Execução Distribuída (2 Máquinas)
 
-O Cliente apresenta um menu com as seguintes opções:
+### Máquina 1 (Servidor RMI + Web)
 
-```
-1. Index a URL          - Adicionar URL para indexação
-2. Search               - Pesquisar por palavras
-3. Get incoming links   - Ver páginas que apontam para um URL
-4. View statistics      - Ver estatísticas do sistema
-5. View statistics (RT) - Estatísticas em tempo real
-6. Exit                 - Sair
-```
+1. Editar `config.properties`:
+   ```properties
+   rmi.host=IP_MAQUINA_1
+   ```
+2. Iniciar `URLQueue`, `Gateway` e a `WebApplication`
 
-### Exemplo de Utilização
+### Máquina 2 (Workers)
 
-1. Indexar URL:
-```
-Choose: 1
-Enter URL:  http://www.uc.pt
-            http://www.dei.uc.pt
-            http://www.fctuc.pt
-            http://eden.dei.uc.pt
-            https://en.wikipedia.org/wiki/University_of_Coimbra
-```
-
-2. Aguardar 10-15 segundos (processamento)
-
-3. Pesquisar:
-```
-Choose: 2
-Enter search terms: universidade
-```
-
-4. Navegar resultados: `n` (next), `p` (previous), `b` (back)
+1. Editar `config.properties`:
+   ```properties
+   rmi.host=IP_MAQUINA_1
+   ```
+2. Iniciar `StorageBarrel` e `Downloader`
 
 ---
 
-## URLs para Teste
+## Funcionalidades
 
-```
-http://www.uc.pt
-http://www.dei.uc.pt
-http://www.fctuc.pt
-https://en.wikipedia.org/wiki/University_of_Coimbra
-```
+### Backend (RMI)
+- **Indexação Distribuída:** Manual e recursiva de URLs
+- **Pesquisa Relevante:** Ordenação baseada em citações (incoming links)
+- **Persistência:** Recuperação automática após falhas
+- **Redundância:** Múltiplos Storage Barrels com dados replicados
+
+### Frontend (Web)
+- **Interface de Pesquisa:** Página web intuitiva
+- **Paginação:** Resultados em grupos de 10
+- **Incoming Links:** Visualização de páginas que referenciam um resultado
+- **Dashboard em Tempo Real:** Estatísticas via WebSockets
+- **Integração HackerNews:** Indexação automática das top stories
+- **Resumo com IA:** Geração de resumos usando Google Gemini
 
 ---
 
 ## Resolução de Problemas
 
-### "Connection refused"
-- Verificar se URLQueue está a correr
-- Verificar config.properties (rmi.host correto)
-- Em 2 máquinas: verificar firewall e conectividade de rede
+### Porta Ocupada
+Se a porta 8080 estiver em uso, altere `server.port` no ficheiro `config.properties`.
 
-### "ClassNotFoundException"
-- Verificar CLASSPATH correto
-- Linux/Mac: usar `:` (dois pontos)
-- Windows: usar `;` (ponto-e-vírgula)
-
-### "No barrels available"
-- Verificar se pelo menos 1 StorageBarrel está a correr
-- Verificar logs do Gateway
-
-### "Address already in use"
-- Matar processos Java anteriores
-- Ou alterar `rmi.port` em config.properties
-
-### Firewall (Windows - Máquina 1)
-```powershell
-# PowerShell como Administrador
-New-NetFirewallRule -DisplayName "RMI Googol" -Direction Inbound -Protocol TCP -LocalPort 1099 -Action Allow
+```properties
+server.port=8081
 ```
+
+### API Key Inválida
+Se o resumo da IA falhar, verifique se a chave no `config.properties` é válida.
+
+### ClassNotFoundException
+Certifique-se de que executou `mvn package` antes de tentar correr as classes RMI.
+
+### Conexão RMI Falhada
+Verifique se:
+- O `rmi.host` no `config.properties` está correto
+- A porta `1099` não está bloqueada por firewall
+- Os componentes RMI foram iniciados pela ordem correta
 
 ---
 
-## Notas Importantes
+## Autores
 
-- Aguardar cada componente inicializar completamente antes de iniciar o próximo
-- URLQueue deve ser iniciado primeiro (cria RMI registry)
-- Em execução distribuída, Máquina 1 deve estar completamente iniciada antes de iniciar Máquina 2
-- Resultados de pesquisa são ordenados por número de incoming links
-- Sistema guarda estado automaticamente em `data/` (recuperação após crash)
-- Logs de execução podem ser consultados nos terminais
+- **Diogo Saldanha**
+- **Tiago Silva**
+
+**Unidade Curricular:** Sistemas Distribuídos  
+**Ano Letivo:** 2024/2025
+
+---

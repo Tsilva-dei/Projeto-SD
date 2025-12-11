@@ -52,6 +52,8 @@ public class Config {
     private static void setDefaults() {
         props.setProperty("rmi.host", "localhost");
         props.setProperty("rmi.port", "1099");
+        props.setProperty("server.host", "localhost");
+        props.setProperty("server.port", "8080");
         props.setProperty("downloader.retry.count", "3");
         props.setProperty("downloader.retry.delay.ms", "1000");
         props.setProperty("downloader.sleep.no.urls.ms", "2000");
@@ -148,22 +150,27 @@ public class Config {
         return Integer.parseInt(props.getProperty("queue.bloom.filter.size", "10000"));
     }
     
-    // Logging
     public static String getLoggingLevel() {
         return props.getProperty("logging.level", "INFO");
     }
     
-    /**
-     * Reload configuration from file
-     */
     public static void reload() {
         loadProperties();
     }
     
-    /**
-     * Get property by key
-     */
     public static String getProperty(String key, String defaultValue) {
         return props.getProperty(key, defaultValue);
     }
+
+    public static int getWebServerPort() {
+        return Integer.parseInt(props.getProperty("server.port", "8080"));
+    }
+
+    public static String getWebServerHost() {
+        return props.getProperty("server.host", "localhost");
+    }
+    
+    public static String getGeminiApiKey() {
+        return props.getProperty("gemini.api.key", "");
+    }    
 }
