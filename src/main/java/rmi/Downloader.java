@@ -128,13 +128,20 @@ public class Downloader implements Runnable {
                 title = url;
             }
             
-            // Extract text and create citation (first 150 chars)
-            String text = doc.body().text();
-            String citation = text.length() > 150 ? text.substring(0, 150) + "..." : text;
-            
-            // Extract words (tokenize)
+            // Extract text and create citation
+            String text;
+            Elements paragraphs = doc.select("p");
+            if (!paragraphs.isEmpty()) {
+                text = paragraphs.text();
+            } else {
+                text = doc.body().text();
+            }
+
+            String citation = text.length() > 200 ? text.substring(0, 200) + "..." : text;
+
+            // Extract words
             Set<String> words = extractWords(text);
-            
+
             // Extract links
             Set<String> links = new HashSet<>();
             Elements linkElements = doc.select("a[href]");

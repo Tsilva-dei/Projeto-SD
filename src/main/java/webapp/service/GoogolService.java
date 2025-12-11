@@ -38,6 +38,7 @@ public class GoogolService {
      */
     @PostConstruct
     public void init() {
+        //listAvailableModels();
         connectToGateway();
     }
     
@@ -205,7 +206,7 @@ public class GoogolService {
         try {
             RestTemplate restTemplate = new RestTemplate();
             // URL da API do Gemini
-            String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+            String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
             // Headers
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
             headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
@@ -247,6 +248,24 @@ public class GoogolService {
             return "Não foi possível gerar o resumo Gemini no momento (Verificar Logs)..";
         }
         return "Sem resposta do Gemini.";
+    }
+
+    public void listAvailableModels() {
+        try {
+            // Nota: Usa a mesma chave que tens no método generateAISummary
+            String apiKey = "AIzaSyBQXl2RDLCymDbgq-QFgNOmEA8Co-aGv1c"; 
+            String url = "https://generativelanguage.googleapis.com/v1beta/models?key=" + apiKey;
+            
+            RestTemplate rt = new RestTemplate();
+            ResponseEntity<String> response = rt.getForEntity(url, String.class);
+            
+            System.out.println("==========================================");
+            System.out.println(">>> MODELOS DISPONÍVEIS NA TUA CONTA:");
+            System.out.println(response.getBody());
+            System.out.println("==========================================");
+        } catch (Exception e) {
+            System.err.println(">>> ERRO AO LISTAR MODELOS: " + e.getMessage());
+        }
     }
 
     // ========== Métodos auxiliares para ler configuração ==========

@@ -103,7 +103,7 @@ public class SearchController {
             model.addAttribute("showNext", results.size() >= 10);
 
         } catch (Exception e) {
-            model.addAttribute("error", "Erro ao gerar resumo: " + e.getMessage());
+            model.addAttribute("error", "Erro ao gerar " + e.getMessage());
         }
         return "search";
     }
