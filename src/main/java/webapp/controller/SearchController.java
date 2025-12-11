@@ -76,4 +76,35 @@ public class SearchController {
         }
         return index(model);
     }
+
+    @GetMapping("/search/summary")
+    public String searchWithSummary(@RequestParam("q") String query, Model model) {
+        try {
+            // Pesquisa normal
+            List<SearchResult> results = googolService.searchPaginated(query, 0, 10);
+
+            // Extração de snippets
+            List<String> snippets = new java.util.ArrayList<>();
+            for (int i = 0; i < Math.min(results.size(), 5); i++) {
+                snippets.add(results.get(i).citation);
+            }
+
+            String aiSummary = googolService.generateAISummary(query, snippets);
+
+            model.addAttribute("results", results);
+            model.addAttribute("query", query);
+            model.addAttribute("page", 0);
+            model.addAttribute("aiSummary", aiSummary);
+
+            // Botões next/previous
+            model.addAttribute("nextPage", 1);
+            model.addAttribute("prevPage", 0);
+            model.addAttribute("showPrev", false);
+            model.addAttribute("showNext", results.size() >= 10);
+
+        } catch (Exception e) {
+            model.addAttribute("error", "Erro ao gerar resumo: " + e.getMessage());
+        }
+        return "search";
+    }
 }

@@ -23,6 +23,19 @@
     </div>
 
     <h2>Resultados para: <span th:text="${query}"></span></h2>
+    <div th:if="${aiSummary}">
+        <h3 style="margin-top: 0; color: #004085">Resumo da IA</h3>
+        <p th:text="${aiSummary}" style="color: #004850"></p>
+    </div>
+
+    <div th:unless="${aiSummary}">
+        <form action="/search/summary" method="get" style="display: inline;">
+            <input type="hidden" name="q" th:value="${query}">
+            <button type="submit" style="background-color: #6f42c1; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">
+                Gerar Resumo da IA
+            </button>
+        </form>
+    </div>
 
     <div th:if="${error}" style="color:red" th:text="${error}"></div>
 
@@ -30,7 +43,7 @@
         <div><a th:href="${res.url}" th:text="${res.title}">Título</a></div>
         <div class="url" th:text="${res.url}">http://url...</div>
         <div class="citation" th:text="${res.citation}">Texto...</div>
-        <div class="meta" th:text="${res.incomingLinks + 'links a apontar para cá'}"></div>
+        <div class="meta" th:text="${res.incomingLinks + ' links a apontar para cá'}"></div>
     </div>
 
     <div th:if="${#lists.isEmpty(results)}">

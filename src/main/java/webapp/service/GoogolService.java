@@ -198,6 +198,7 @@ public class GoogolService {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public String generateAISummary(String query, List<String> snippets) {
         String apiKey = "AIzaSyBQXl2RDLCymDbgq-QFgNOmEA8Co-aGv1c";
 
@@ -205,7 +206,6 @@ public class GoogolService {
             RestTemplate restTemplate = new RestTemplate();
             // URL da API do Gemini
             String apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
-
             // Headers
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
             headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
@@ -224,8 +224,13 @@ public class GoogolService {
 
             org.springframework.http.HttpEntity<Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(body, headers);
 
-            ResponseEntity<Map> response = restTemplate.postForEntity(apiUrl, entity, Map.class);
-
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                apiUrl,
+                HttpMethod.POST,
+                entity,
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            
             // Extrair resposta do JSON
             if (response.getBody() != null) {
                 List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.getBody().get("candidates");
