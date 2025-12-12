@@ -3,7 +3,6 @@ rmi\BarrelStats.class
 rmi\Client$1.class
 rmi\Client.class
 webapp\service\GoogolService.class
-webapp\model\SearchResultDTO.class
 webapp\service\GoogolService$3.class
 rmi\StorageBarrelInterface.class
 webapp\service\GoogolService$1.class

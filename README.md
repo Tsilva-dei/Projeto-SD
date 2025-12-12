@@ -65,22 +65,22 @@ Abra **4 terminais separados** e execute os seguintes comandos:
 
 #### Terminal 1 - URLQueue
 ```bash
-java -cp "target/classes:lib/*" rmi.URLQueue
+java -cp "target/classes;lib/*" rmi.URLQueue
 ```
 
 #### Terminal 2 - Storage Barrel
 ```bash
-java -cp "target/classes:lib/*" rmi.StorageBarrel barrel1
+java -cp "target/classes;lib/*" rmi.StorageBarrel barrel1
 ```
 
 #### Terminal 3 - Downloader
 ```bash
-java -cp "target/classes:lib/*" rmi.Downloader d1
+java -cp "target/classes;lib/*" rmi.Downloader d1
 ```
 
 #### Terminal 4 - Gateway
 ```bash
-java -cp "target/classes:lib/*" rmi.Gateway
+java -cp "target/classes;lib/*" rmi.Gateway
 ```
 
 ---
